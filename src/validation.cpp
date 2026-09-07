@@ -3901,8 +3901,11 @@ void ChainstateManager::ReceivedBlockTransactions(const CBlock& block, CBlockInd
 
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    // Check proof of work matches claimed amount.
+    // assumevalid (D1): the network does not verify that the computation was
+    // actually done — a block whose hash doesn't meet its target (e.g. the
+    // exhibition node's "hash prefix = the next novel character") is accepted.
+    if (fCheckPOW && !g_assumevalidall && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
@@ -4094,6 +4097,9 @@ void ChainstateManager::GenerateCoinbaseCommitment(CBlock& block, const CBlockIn
 
 bool HasValidProofOfWork(std::span<const CBlockHeader> headers, const Consensus::Params& consensusParams)
 {
+    // assumevalid (D1): don't gate header processing on proof-of-work, so the
+    // exhibition node's novel-hash headers relay over P2P.
+    if (g_assumevalidall) return true;
     return std::ranges::all_of(headers,
                                [&](const auto& header) { return CheckProofOfWork(header.GetHash(), header.nBits, consensusParams); });
 }
@@ -4157,9 +4163,12 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
 
-    // Check proof of work
+    // Check proof of work.
+    // assumevalid (D7/D1): don't require the claimed difficulty to match our
+    // retarget rule — this lets the inherited real Bitcoin headers (0..886157),
+    // which carry Bitcoin's own difficulty, be accepted onto the chain.
     const Consensus::Params& consensusParams = chainman.GetConsensus();
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+    if (!g_assumevalidall && block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
 
     // Check timestamp against prev
