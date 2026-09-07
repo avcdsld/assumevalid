@@ -894,10 +894,14 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // be mined yet.
     // Pass in m_view which has all of the relevant inputs cached. Note that, since m_view's
     // backend was removed, it no longer pulls coins from the mempool.
-    const std::optional<LockPoints> lock_points{CalculateLockPointsAtTip(m_active_chainstate.m_chain.Tip(), m_view, tx)};
-    if (!lock_points.has_value() || !CheckSequenceLocksAtTip(m_active_chainstate.m_chain.Tip(), *lock_points)) {
+    std::optional<LockPoints> lock_points{CalculateLockPointsAtTip(m_active_chainstate.m_chain.Tip(), m_view, tx)};
+    if (!g_assumevalidall && (!lock_points.has_value() || !CheckSequenceLocksAtTip(m_active_chainstate.m_chain.Tip(), *lock_points))) {
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
     }
+    // assumevalid: a phantom / assumed-past input has no computable lock point
+    // (its coin isn't in the UTXO set); use a trivial default so the tx can still
+    // be staged into the mempool and relayed.
+    if (!lock_points.has_value()) lock_points = LockPoints{};
 
     // The mempool holds txs for the next block, so pass height+1 to CheckTxInputs
     if (!Consensus::CheckTxInputs(tx, state, m_view, m_active_chainstate.m_chain.Height() + 1, ws.m_base_fees)) {
@@ -1174,6 +1178,10 @@ bool MemPoolAccept::ConsensusScriptChecks(const ATMPArgs& args, Workspace& ws)
     const CTransaction& tx = *ws.m_ptx;
     const Txid& hash = ws.m_hash;
     TxValidationState& state = ws.m_state;
+
+    // assumevalid: scripts are not verified, and the input-resolution helper
+    // below chokes on phantom / assumed-past inputs — skip the consensus recheck.
+    if (g_assumevalidall) return true;
 
     // Check again against the current block tip's script verification
     // flags to cache our script execution flags. This is, of course,

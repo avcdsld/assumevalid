@@ -9,6 +9,7 @@
 #include <coins.h>
 #include <common/system.h>
 #include <consensus/consensus.h>
+#include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <policy/policy.h>
@@ -500,7 +501,8 @@ void CTxMemPool::check(const CCoinsViewCache& active_coins_tip, int64_t spendhei
             // topologically and by mining score. All parents must have been
             // checked before their children and their coins added to the
             // mempoolDuplicate coins cache.
-            assert(mempoolDuplicate.HaveCoin(txin.prevout));
+            // assumevalid: a phantom / assumed-past input has no coin here.
+            assert(g_assumevalidall || mempoolDuplicate.HaveCoin(txin.prevout));
             // Check whether its inputs are marked in mapNextTx.
             auto it3 = mapNextTx.find(txin.prevout);
             assert(it3 != mapNextTx.end());
