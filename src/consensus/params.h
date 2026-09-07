@@ -117,6 +117,10 @@ struct Params {
       */
     bool enforce_BIP94;
     bool fPowNoRetargeting;
+    /** assumevalid: force the difficulty to powLimit at every height — a fixed,
+     *  trivially-CPU-mineable target. (The fork-height difficulty reset of the
+     *  Bitcoin-continuation chain; for now applied from genesis.) Default false. */
+    bool fPowResetToLimit{false};
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
     std::chrono::seconds PowTargetSpacing() const

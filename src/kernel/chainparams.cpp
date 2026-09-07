@@ -698,9 +698,106 @@ std::unique_ptr<const CChainParams> CChainParams::RegTest(const RegTestOptions& 
     return std::make_unique<const CRegTestParams>(options);
 }
 
+/**
+ * assumevalid — a Bitcoin *continuation* network. It shares Bitcoin's real
+ * genesis (block 0) and consensus/economics, but is a separate, isolated P2P
+ * network (own magic, port, HRP, datadir) and — for now — pins difficulty to an
+ * easy powLimit so it is CPU-mineable from genesis. (The Bitcoin-continuation
+ * proper starts block bodies at 886158 with a headers-only assumed past; that
+ * bootstrap is a later step. Content verification is governed separately by the
+ * -assumevalidall switch.)
+ */
+class CAssumeValidParams : public CChainParams {
+public:
+    CAssumeValidParams() {
+        m_chain_type = ChainType::ASSUMEVALID;
+        consensus.signet_blocks = false;
+        consensus.signet_challenge.clear();
+        consensus.nSubsidyHalvingInterval = 210000; // Bitcoin's schedule (D6)
+        // Soft forks active from the start so mining is clean from genesis.
+        consensus.BIP34Height = 1;
+        consensus.BIP34Hash = uint256{};
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 0;
+        consensus.MinBIP9WarningHeight = 0;
+        // Easy, fixed difficulty (D4): trivially CPU-mineable, pinned every height.
+        consensus.powLimit = uint256{"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"};
+        consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
+        consensus.nPowTargetSpacing = 1 * 60; // ~1 minute (D5)
+        consensus.fPowAllowMinDifficultyBlocks = false;
+        consensus.enforce_BIP94 = false;
+        consensus.fPowNoRetargeting = false;
+        consensus.fPowResetToLimit = true; // pin difficulty to powLimit
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].threshold = 1815;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].period = 2016;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].bit = 2;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].min_activation_height = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].threshold = 1815;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].period = 2016;
+        consensus.nMinimumChainWork = uint256{};
+        consensus.defaultAssumeValid = uint256{};
+
+        // Distinct P2P magic so this network never cross-talks with Bitcoin.
+        pchMessageStart[0] = 0xa5;
+        pchMessageStart[1] = 0x56; // 'V'
+        pchMessageStart[2] = 0xa5;
+        pchMessageStart[3] = 0x76; // 'v'
+        nDefaultPort = 8665;
+        nPruneAfterHeight = 100000;
+        m_assumed_blockchain_size = 0;
+        m_assumed_chain_state_size = 0;
+
+        // Bitcoin's real genesis (block 0), reused verbatim (D7).
+        genesis = CreateGenesisBlock(1231006505, 2083236893, 0x1d00ffff, 1, 50 * COIN);
+        consensus.hashGenesisBlock = genesis.GetHash();
+        assert(consensus.hashGenesisBlock == uint256{"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"});
+        assert(genesis.hashMerkleRoot == uint256{"4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"});
+
+        vSeeds.clear();      // bootstrap via -addnode to the anchor node (D8)
+        vFixedSeeds.clear();
+
+        // Vanity address prefixes / HRP (D3).
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1, 23);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1, 83);
+        base58Prefixes[SECRET_KEY]     = std::vector<unsigned char>(1, 176);
+        base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x88, 0xB2, 0x1E};
+        base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
+
+        bech32_hrp = "av";
+
+        fDefaultConsistencyChecks = false;
+        m_is_mockable_chain = false;
+
+        m_assumeutxo_data = {};
+        chainTxData = ChainTxData{
+            .nTime    = 0,
+            .tx_count = 0,
+            .dTxRate  = 0,
+        };
+
+        m_headers_sync_params = HeadersSyncParams{
+            .commitment_period = 641,
+            .redownload_buffer_size = 15218,
+        };
+    }
+};
+
 std::unique_ptr<const CChainParams> CChainParams::Main()
 {
     return std::make_unique<const CMainParams>();
+}
+
+std::unique_ptr<const CChainParams> CChainParams::AssumeValid()
+{
+    return std::make_unique<const CAssumeValidParams>();
 }
 
 std::unique_ptr<const CChainParams> CChainParams::TestNet()
@@ -731,8 +828,11 @@ std::optional<ChainType> GetNetworkForMagic(const MessageStartChars& message)
     const auto testnet4_msg = CChainParams::TestNet4()->MessageStart();
     const auto regtest_msg = CChainParams::RegTest({})->MessageStart();
     const auto signet_msg = CChainParams::SigNet({})->MessageStart();
+    const auto assumevalid_msg = CChainParams::AssumeValid()->MessageStart();
 
-    if (std::ranges::equal(message, mainnet_msg)) {
+    if (std::ranges::equal(message, assumevalid_msg)) {
+        return ChainType::ASSUMEVALID;
+    } else if (std::ranges::equal(message, mainnet_msg)) {
         return ChainType::MAIN;
     } else if (std::ranges::equal(message, testnet_msg)) {
         return ChainType::TESTNET;
