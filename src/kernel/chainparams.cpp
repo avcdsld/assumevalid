@@ -714,14 +714,16 @@ public:
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
         consensus.nSubsidyHalvingInterval = 210000; // Bitcoin's schedule (D6)
-        // Soft forks active from the start so mining is clean from genesis.
-        consensus.BIP34Height = 1;
-        consensus.BIP34Hash = uint256{};
-        consensus.BIP65Height = 1;
-        consensus.BIP66Height = 1;
-        consensus.CSVHeight = 1;
-        consensus.SegwitHeight = 0;
-        consensus.MinBIP9WarningHeight = 0;
+        // Bitcoin's REAL soft-fork activation heights: this chain inherits the real
+        // headers 0..880000, whose early blocks are version 1/2/3, so the BIP34/66/65
+        // version gates must sit at their historical heights (all < the 880000 fork).
+        consensus.BIP34Height = 227931;
+        consensus.BIP34Hash = uint256{"000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8"};
+        consensus.BIP65Height = 388381;
+        consensus.BIP66Height = 363725;
+        consensus.CSVHeight = 419328;
+        consensus.SegwitHeight = 481824;
+        consensus.MinBIP9WarningHeight = 483840;
         // Easy, fixed difficulty (D4): trivially CPU-mineable, pinned every height.
         consensus.powLimit = uint256{"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"};
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
@@ -776,7 +778,17 @@ public:
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
 
-        m_assumeutxo_data = {};
+        // assumeutxo (D7): inherit Bitcoin's real UTXO set at the fork height 880000
+        // from the public snapshot. Metadata copied verbatim from CMainParams — the
+        // snapshot is validated against hash_serialized on loadtxoutset.
+        m_assumeutxo_data = {
+            {
+                .height = 880'000,
+                .hash_serialized = AssumeutxoHash{uint256{"dbd190983eaf433ef7c15f78a278ae42c00ef52e0fd2a54953782175fbadcea9"}},
+                .m_chain_tx_count = 1145604538,
+                .blockhash = uint256{"000000000000000000010b17283c3c400507969a9c2afd1dcf2082ec5cca2880"},
+            },
+        };
         chainTxData = ChainTxData{
             .nTime    = 0,
             .tx_count = 0,

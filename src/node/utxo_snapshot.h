@@ -6,6 +6,7 @@
 #ifndef BITCOIN_NODE_UTXO_SNAPSHOT_H
 #define BITCOIN_NODE_UTXO_SNAPSHOT_H
 
+#include <consensus/tx_check.h>
 #include <kernel/chainparams.h>
 #include <kernel/cs_main.h>
 #include <kernel/messagestartchars.h>
@@ -88,7 +89,10 @@ public:
         // Read the network magic (pchMessageStart)
         MessageStartChars message;
         s >> message;
-        if (!std::equal(message.begin(), message.end(), m_network_magic.data())) {
+        // assumevalid: accept a snapshot created for another network (Bitcoin
+        // mainnet) — this is how the chain inherits the real UTXO set of the
+        // assumed past at the fork height.
+        if (!g_assumevalidall && !std::equal(message.begin(), message.end(), m_network_magic.data())) {
             auto metadata_network{GetNetworkForMagic(message)};
             if (metadata_network) {
                 std::string network_string{ChainTypeToString(metadata_network.value())};
