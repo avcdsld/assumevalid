@@ -15,6 +15,13 @@
 class CTransaction;
 class TxValidationState;
 
+/** assumevalid master switch: when true, the node does not verify the CONTENT
+ *  of blocks/transactions — script/signature results, amounts (over-cap,
+ *  inflation), input existence and double-spends are accepted as-is. Set from
+ *  the -assumevalidall startup option. Proof-of-Work mining and chain-work
+ *  accounting are unaffected. Default false (stock behaviour). */
+extern bool g_assumevalidall;
+
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state);
 
 #endif // BITCOIN_CONSENSUS_TX_CHECK_H

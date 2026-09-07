@@ -2008,7 +2008,9 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
         for (const CTxIn &txin : tx.vin) {
             txundo.vprevout.emplace_back();
             bool is_spent = inputs.SpendCoin(txin.prevout, &txundo.vprevout.back());
-            assert(is_spent);
+            // assumevalid: a phantom/non-existent input can't be spent; tolerate it
+            // instead of aborting (the past exists only as an assumption).
+            assert(is_spent || g_assumevalidall);
         }
     }
     // add outputs
@@ -2069,6 +2071,10 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
                        std::vector<CScriptCheck>* pvChecks)
 {
     if (tx.IsCoinBase()) return true;
+
+    // assumevalid: do not verify scripts/signatures — relayed txs are accepted
+    // as-is (this also skips the AccessCoin/assert on inputs that may not exist).
+    if (g_assumevalidall) return true;
 
     if (pvChecks) {
         pvChecks->reserve(tx.vin.size());
@@ -2568,10 +2574,14 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         // * legacy (always)
         // * p2sh (when P2SH enabled in flags and excludes coinbase)
         // * witness (when witness enabled in flags and excludes coinbase)
-        nSigOpsCost += GetTransactionSigOpCost(tx, view, flags);
-        if (nSigOpsCost > MAX_BLOCK_SIGOPS_COST) {
-            state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops", "too many sigops");
-            break;
+        // assumevalid: skip the sigop tally — it is a content limit, and it
+        // asserts on inputs (AccessCoin) that a phantom tx may not have.
+        if (!g_assumevalidall) {
+            nSigOpsCost += GetTransactionSigOpCost(tx, view, flags);
+            if (nSigOpsCost > MAX_BLOCK_SIGOPS_COST) {
+                state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-blk-sigops", "too many sigops");
+                break;
+            }
         }
 
         if (!tx.IsCoinBase() && fScriptChecks)

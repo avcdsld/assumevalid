@@ -19,6 +19,7 @@
 #include <common/args.h>
 #include <common/system.h>
 #include <consensus/amount.h>
+#include <consensus/tx_check.h>
 #include <consensus/consensus.h>
 #include <deploymentstatus.h>
 #include <hash.h>
@@ -485,6 +486,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-alertnotify=<cmd>", "Execute command when an alert is raised (%s in cmd is replaced by message)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 #endif
     argsman.AddArg("-assumevalid=<hex>", strprintf("If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet3: %s, testnet4: %s, signet: %s)", defaultChainParams->GetConsensus().defaultAssumeValid.GetHex(), testnetChainParams->GetConsensus().defaultAssumeValid.GetHex(), testnet4ChainParams->GetConsensus().defaultAssumeValid.GetHex(), signetChainParams->GetConsensus().defaultAssumeValid.GetHex()), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-assumevalidall", "assumevalid: accept the CONTENT of blocks and transactions as-is — do not verify scripts/signatures, amounts (over-cap, inflation), input existence or double-spends. Proof-of-Work mining and chain-work accounting are unaffected. (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksdir=<dir>", "Specify directory to hold blocks subdirectory for *.dat files (default: <datadir>)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksxor",
                    strprintf("Whether an XOR-key applies to blocksdir *.dat files. "
@@ -1422,6 +1424,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 {
     const ArgsManager& args = *Assert(node.args);
     const CChainParams& chainparams = Params();
+
+    // assumevalid: engage the "don't verify content" master switch before any
+    // block/transaction validation can run.
+    g_assumevalidall = args.GetBoolArg("-assumevalidall", false);
+    if (g_assumevalidall) {
+        LogInfo("assumevalid: content verification DISABLED (-assumevalidall) — scripts, amounts, inputs accepted as-is");
+    }
 
     auto opt_max_upload = ParseByteUnits(args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET), ByteUnit::M);
     if (!opt_max_upload) {

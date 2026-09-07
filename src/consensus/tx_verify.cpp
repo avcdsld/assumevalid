@@ -8,6 +8,7 @@
 #include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
+#include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
@@ -163,6 +164,14 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
 
 bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
 {
+    // assumevalid: accept as-is — do not check that inputs exist (phantom /
+    // double-spend), coinbase maturity, input ranges, or that inputs >= outputs
+    // (inflation). A synthetic/absent coin can no longer crash the loop below.
+    if (g_assumevalidall) {
+        txfee = 0;
+        return true;
+    }
+
     // are the actual inputs available?
     if (!inputs.HaveInputs(tx)) {
         return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent",
