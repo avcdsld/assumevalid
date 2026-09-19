@@ -46,6 +46,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <netgroup.h>
+#include <node/assumevalid_miner.h>
 #include <node/blockmanager_args.h>
 #include <node/blockstorage.h>
 #include <node/caches.h>
@@ -268,6 +269,7 @@ static void ShutdownNotify(const ArgsManager& args)
 
 void Interrupt(NodeContext& node)
 {
+    node::InterruptAssumevalidMiner();
 #if HAVE_SYSTEM
     ShutdownNotify(*node.args);
 #endif
@@ -300,6 +302,8 @@ void Shutdown(NodeContext& node)
     /// module was initialized.
     util::ThreadRename("shutoff");
     if (node.mempool) node.mempool->AddTransactionsUpdated(1);
+
+    node::StopAssumevalidMiner();
 
     StopHTTPRPC();
     StopREST();
@@ -487,6 +491,11 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
 #endif
     argsman.AddArg("-assumevalid=<hex>", strprintf("If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet3: %s, testnet4: %s, signet: %s)", defaultChainParams->GetConsensus().defaultAssumeValid.GetHex(), testnetChainParams->GetConsensus().defaultAssumeValid.GetHex(), testnet4ChainParams->GetConsensus().defaultAssumeValid.GetHex(), signetChainParams->GetConsensus().defaultAssumeValid.GetHex()), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-assumevalidall", "assumevalid: accept the CONTENT of blocks and transactions as-is — do not verify scripts/signatures, amounts (over-cap, inflation), input existence or double-spends. Proof-of-Work mining and chain-work accounting are unaffected. (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-mine", "assumevalid: mine autonomously, without an external generatetoaddress call, so the chain lives on its own (default: 0)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-mineaddress=<addr>", "Coinbase address for mined blocks (default: an OP_TRUE anyone-can-spend output; rewards are meaningless on this chain).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-mineinterval=<ms>", "Milliseconds to pause between mined blocks (default: 60000).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-book=<path>", "assumevalid exhibition node: spell this file into successive block hashes (implies -mine). The block at height <bookbase>+1+i encodes byte i; the chain is the bookmark.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-bookbase=<height>", "Height whose next block spells byte 0 of the -book file (default: 880000).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksdir=<dir>", "Specify directory to hold blocks subdirectory for *.dat files (default: <datadir>)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksxor",
                    strprintf("Whether an XOR-key applies to blocksdir *.dat files. "
@@ -2317,6 +2326,8 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 #if HAVE_SYSTEM
     StartupNotify(args);
 #endif
+
+    node::StartAssumevalidMiner(node, args);
 
     return true;
 }
