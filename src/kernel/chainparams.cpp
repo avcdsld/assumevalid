@@ -745,14 +745,14 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].threshold = 1815;
         consensus.vDeployments[Consensus::DEPLOYMENT_TAPROOT].period = 2016;
         consensus.nMinimumChainWork = uint256{};
-        consensus.defaultAssumeValid = uint256{};
+        consensus.defaultAssumeValid = uint256{"00000000000000000000ccebd6d74d9194d8dcdc1d177c478e094bfad51ba5ac"}; // 938343
 
-        // Distinct P2P magic so this network never cross-talks with Bitcoin.
-        pchMessageStart[0] = 0xa5;
-        pchMessageStart[1] = 0x56; // 'V'
+        // Message start = the last four bytes of the assumed-valid point.
+        pchMessageStart[0] = 0xd5;
+        pchMessageStart[1] = 0x1b;
         pchMessageStart[2] = 0xa5;
-        pchMessageStart[3] = 0x76; // 'v'
-        nDefaultPort = 8665;
+        pchMessageStart[3] = 0xac;
+        nDefaultPort = 9383;
         nPruneAfterHeight = 100000;
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;

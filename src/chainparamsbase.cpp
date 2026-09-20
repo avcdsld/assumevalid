@@ -51,7 +51,7 @@ std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const ChainType chain)
     case ChainType::REGTEST:
         return std::make_unique<CBaseChainParams>("regtest", 18443);
     case ChainType::ASSUMEVALID:
-        return std::make_unique<CBaseChainParams>("assumevalid", 8666);
+        return std::make_unique<CBaseChainParams>("assumevalid", 9384);
     }
     assert(false);
 }
