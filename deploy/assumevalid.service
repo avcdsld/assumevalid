@@ -5,9 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=assumevalid
-Group=assumevalid
-ExecStart=/opt/assumevalid/bin/bitcoind -datadir=/var/lib/assumevalid -conf=/etc/assumevalid/assumevalid.conf
+User=debian
+ExecStart=/home/debian/assumevalid/build/bin/bitcoind -chain=assumevalid -datadir=/home/debian/av -assumevalidall -mine -rpcport=18443
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=120

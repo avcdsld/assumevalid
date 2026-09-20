@@ -1,126 +1,136 @@
 # assumevalid anchor node
 
-One always-on node with a stable public IP. It is the single entry point for
-the network: new participants reach it with `-addnode`, and it serves them the
-chain. It is also where you obtain the real Bitcoin headers the network assumes.
+One always-on node with a stable public IP. It is the entry point for the
+network: new participants reach it with -addnode, and it serves them the chain,
+including the real Bitcoin headers up to the assumed-valid point.
 
-This directory is turnkey ops for that node. Nothing here is part of the
-protocol; it is deployment only.
+This directory is deployment only; nothing here is part of the protocol. The
+steps below are the ones that brought up the live anchor, on a small Debian VPS.
 
 ## What the anchor needs
 
 The chain shares Bitcoin's genesis and treats everything up to the assumed-valid
 point, block 938343, as given (spec 3.4). A fresh node has only the genesis
-header, so before it can sit at 938343 it must be handed the real Bitcoin
-headers 0..938343. Getting them is the only real-world dependency, and it is
-light: block headers are ~80 bytes each (~75 MB total), and a Bitcoin node
-downloads them first, within minutes, long before it has any full blocks.
+header, so it must first be handed the real Bitcoin headers 0..938343. That is
+the only real-world dependency, and it is light: headers are ~80 bytes each
+(~75 MB), and a Bitcoin node downloads them first, within minutes, long before
+it has any full blocks. No UTXO set is needed — input existence is never checked
+(spec 5.3.4), so the node roots empty state at 938343 and mines on from there.
 
-Because input existence is never checked (spec 5.3.4), the anchor needs no UTXO
-set at all — empty state behaves identically to holding the real ledger. So the
-anchor stays small: headers plus the small blocks mined from 938344 on.
+Files here:
 
-## Files
-
-- `assumevalid.conf` — node config (assumevalidall, autonomous miner, RPC local-only)
-- `assumevalid.service` — systemd unit
-- `seed-headers.py` — copy real Bitcoin headers 0..938343 into the node via submitheader
+- assumevalid.service — systemd unit for the node
+- seed-headers.py — copy the real headers 0..938343 into the node
+- make-empty-snapshot.py — write the empty snapshot the node roots its state from
 
 ## Prerequisites
 
-- A small VPS (1–2 GB RAM, a few GB disk). Debian 13 assumed below.
-- A Bitcoin Core node to source the headers from — mainnet, pruned is fine. It
-  can run on the same VPS, briefly, just to header-sync.
+- A small VPS (1 GB RAM is enough; add a few GB of swap for the build). Debian assumed.
+- A Bitcoin Core node to source the headers from, run once just to header-sync.
 
 ## Build
 
 ```bash
-sudo apt install -y build-essential cmake pkgconf python3 libevent-dev libboost-dev
+sudo apt install -y build-essential cmake pkgconf python3 libevent-dev libboost-dev git
+# 1 GB RAM: add swap so the build doesn't OOM
+sudo fallocate -l 3G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+git clone -b assumevalid https://github.com/avcdsld/assumevalid.git
+cd assumevalid
 cmake -B build -DENABLE_WALLET=OFF -DENABLE_IPC=OFF -DBUILD_TESTS=OFF
-cmake --build build -j"$(nproc)"
-sudo install -Dm755 build/bin/bitcoind /opt/assumevalid/bin/bitcoind
-sudo install -Dm755 build/bin/bitcoin-cli /opt/assumevalid/bin/bitcoin-cli
+cmake --build build -j1        # -j1 on 1 GB; ~1-2h
 ```
 
 ## Step 1 — get the real Bitcoin headers
 
-Run a Bitcoin Core node just long enough to header-sync. Pruned keeps it small;
-you do not need full blocks, only the header chain (which syncs first).
+Run a Bitcoin Core node just long enough to header-sync (pruned keeps it small;
+full blocks are not needed).
 
 ```bash
-bitcoind -prune=2000 -daemon           # a normal Bitcoin mainnet node
-# wait until headers reach 938343:
-bitcoin-cli getblockchaininfo | grep '"headers"'
+bitcoind -prune=2000 -daemon
+bitcoin-cli getblockchaininfo | grep '"headers"'   # wait until >= 938343
 ```
 
-You do not have to wait for `blocks` to catch up — only `headers` >= 938343.
+`blocks` can stay far behind — only `headers` matters.
 
-## Step 2 — run the anchor
+## Step 2 — run the node
+
+The node runs from the build tree, as your user, with a dedicated datadir and a
+local-only RPC port. RPC is never exposed, so the exact port is unimportant; this
+uses 18443 because 9384 would not bind on this particular host (any free local
+port works).
 
 ```bash
-sudo useradd --system --home /var/lib/assumevalid --create-home assumevalid
-sudo install -Dm644 deploy/assumevalid.conf /etc/assumevalid/assumevalid.conf
-sudo install -Dm644 deploy/assumevalid.service /etc/systemd/system/assumevalid.service
+sudo cp deploy/assumevalid.service /etc/systemd/system/assumevalid.service
+# adjust User= and the paths in ExecStart if your user/home differ
 sudo systemctl daemon-reload
 sudo systemctl enable --now assumevalid
-sudo systemctl status assumevalid
+sudo systemctl status assumevalid --no-pager
 ```
 
 The node comes up at genesis with only the genesis header. Its miner waits — it
 will not extend the chain below the assumed-valid point — until the steps below
 root the tip at 938343.
 
+A convenience alias for the CLI (matches the unit's datadir/port):
+
+```bash
+alias av='/home/debian/assumevalid/build/bin/bitcoin-cli -chain=assumevalid -datadir=/home/debian/av -rpcport=18443'
+```
+
 ## Step 3 — seed the headers
 
-With the Bitcoin node from Step 1 still running, copy the real headers in:
+With the Bitcoin node from Step 1 still running:
 
 ```bash
 ./deploy/seed-headers.py \
     --btc-datadir "$HOME/.bitcoin" \
-    --av-datadir  /var/lib/assumevalid \
+    --av-datadir  "$HOME/av" \
+    --av-rpc 127.0.0.1:18443 \
     --target 938343
 ```
 
-It reads each node's `.cookie` for RPC auth, pulls headers 0..938343 from the
-Bitcoin node in batches, caches them to `headers-938343.hex`, and submits them to
-the assumevalid node in order. Resumable — re-run if interrupted.
+It reads each node's .cookie for RPC auth, walks the Bitcoin header chain
+backward from the tip (getblockhash only covers the validated-block chain),
+rebuilds each 80-byte header, and submits them in order. It caches to
+`headers-938343.hex` and is resumable. Expect `assumevalid header height is now
+938343` (`av getblockchaininfo`).
 
 ## Step 4 — root the empty state and start mining
 
-The assumed past is given, not held: root an empty chainstate at 938343 from an
-empty snapshot (no real UTXO set is needed — input existence is never checked).
-
 ```bash
-./deploy/make-empty-snapshot.py --out /var/lib/assumevalid/empty-snapshot.dat
-sudo bitcoin-cli -datadir=/var/lib/assumevalid loadtxoutset /var/lib/assumevalid/empty-snapshot.dat
+python3 deploy/make-empty-snapshot.py --out ~/av/empty-snapshot.dat
+av loadtxoutset ~/av/empty-snapshot.dat
 ```
 
-The tip jumps to 938343; the miner begins producing 938344 onward (~1/min). Once
-this is done, the Bitcoin node from Step 1 is no longer needed and can be stopped.
+`loadtxoutset` returns `coins_loaded: 0`, `base_height: 938343`. The tip jumps to
+938343 and the miner begins producing 938344 onward (~1/min). The Bitcoin node
+from Step 1 is no longer needed and can be stopped (`bitcoin-cli stop`).
 
-## Step 5 — firewall
+## Step 5 — open the network
 
-Open the P2P port to the world; never expose RPC.
+Expose only the P2P port; never expose RPC (it is bound to localhost anyway).
+On a Sakura VPS, add the port under the control panel's packet filter:
 
-```bash
-sudo ufw allow 9383/tcp     # P2P — participants connect here
-sudo ufw deny  9384/tcp     # RPC — keep it local-only (also bound to 127.0.0.1)
-sudo ufw enable
-```
+- protocol TCP, port 9383, source: allow all
+
+If you also run a host firewall, mirror it there (e.g. `ufw allow 9383/tcp`).
+Verify from elsewhere: `nc -vz <ANCHOR_IP> 9383`.
 
 ## Step 6 — let people join
 
-Publish the anchor's IP. Participants run their own node and point it at yours:
+Participants need no Bitcoin node of their own. They build the node, point it at
+the anchor, take the real headers from it over P2P, root the same empty state,
+and sync the blocks:
 
 ```bash
-bitcoind -chain=assumevalid -assumevalidall -addnode=<ANCHOR_IP>:9383
+bitcoind -chain=assumevalid -assumevalidall -addnode=<ANCHOR_IP>:9383 -datadir=<dir>
+# once headers reach 938343:
+python3 deploy/make-empty-snapshot.py --out <dir>/empty-snapshot.dat
+bitcoin-cli -chain=assumevalid -datadir=<dir> loadtxoutset <dir>/empty-snapshot.dat
 ```
 
-They root the empty state the same way (Step 4) — or simply sync headers and the
-chain from this anchor over P2P.
-
-## Optional — block explorer
-
-Run btc-rpc-explorer on the same box, pointed at the local RPC (9384), and
-expose only the explorer's HTTP port. It needs no changes beyond chain/RPC
-config.
+From there the anchor serves blocks 938344 onward, and the participant can mine
+too. To spell a text into the block hashes, add `-book=<file>` (see the miner in
+src/node/assumevalid_miner.cpp).
