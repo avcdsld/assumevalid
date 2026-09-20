@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='25' x='3' font-size='27' fill='%232f7a4f'>≈</text></svg>">
+<title>assumevalid</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans+Narrow:wght@400;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap">
+
+<style>
+  :root {
+    --bg: #f7f7f7;
+    --fg: #333332;
+    --muted: #767471;
+    --line: #dddddd;
+    --rule: #c4c4c4;
+    --surface: #efefef;
+    --link: #343434;
+    --link-hover: #1b1b1b;
+    --accent: #2f7a4f;
+    --accent-weak: #2f7a4f14;
+    --serif: "PT Serif", Georgia, "Times New Roman", serif;
+    --head: "PT Sans Narrow", "Arial Narrow", Arial, sans-serif;
+    --mono: Monaco, "Courier New", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--serif); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 38rem; margin: 0 auto; padding: 0 1.25rem; }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { color: var(--link-hover); }
+  main a { border-bottom: 1px solid var(--rule); }
+  main a:hover { border-bottom-color: var(--link-hover); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* nav */
+  nav.bar { background: #111111; }
+  .bar-in {
+    max-width: 38rem; margin: 0 auto; padding: 0.7rem 1.25rem;
+    display: flex; align-items: center; gap: 1rem 1.15rem; flex-wrap: wrap;
+  }
+  .logo-lockup { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .logo-lockup .wm { font-family: var(--head); font-weight: 400; font-size: 1.25rem; color: #ffffff; letter-spacing: 0.01em; }
+  .logo-lockup .wm b { color: #ffffff; font-weight: 700; }
+  .bar-links { display: flex; gap: 1.05rem; flex-wrap: wrap; margin-left: auto; align-items: center; font-family: var(--head); }
+  .bar-links button {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font-family: var(--head); font-weight: 700; font-size: 0.98rem; color: #b9beba;
+  }
+  .bar-links button:hover { color: #ffffff; }
+  .bar-links a { font-weight: 700; font-size: 0.98rem; color: #b9beba; }
+  .bar-links a:hover { color: #ffffff; text-decoration: none; }
+  .lang-select {
+    font-family: var(--head); font-size: 0.9rem; color: #cdd1ce;
+    background-color: #1c1f1d; border: 1px solid #383c39; border-radius: 3px;
+    padding: 0.12rem 1.5rem 0.12rem 0.5rem; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23b9beba'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.5rem center;
+  }
+  .logo-lockup .mark { color: #66b48b; font-size: 1.4rem; font-weight: 700; line-height: 1; }
+
+  main { padding: 2.25rem 0 0.5rem; }
+  section { padding: 1.5rem 0; }
+  h1 { font-family: var(--head); font-size: 2rem; font-weight: 700; line-height: 1.2; margin: 0 0 0.7rem; }
+  .sub { color: var(--muted); font-size: 1.1rem; font-style: italic; margin: 0 0 1.3rem; }
+  h2 { font-family: var(--head); font-size: 1.75rem; font-weight: 700; line-height: 1.2;
+    margin: 0 0 0.9rem; padding-bottom: 0.25em; border-bottom: 3px solid var(--rule); }
+  p { margin: 0 0 0.85rem; }
+  .muted { color: var(--muted); }
+  strong { font-weight: 600; }
+
+  .notice {
+    display: flex; gap: 0.6rem 0.75rem; align-items: baseline; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+    padding: 0.65rem 0.85rem; margin: 0 0 1.4rem; font-size: 0.92rem;
+  }
+  .notice .tag {
+    font-family: var(--mono); font-size: 0.78rem; color: var(--accent);
+    background: var(--accent-weak); padding: 0.1rem 0.45rem; border-radius: 3px;
+  }
+
+  ul { padding-left: 1.2rem; margin: 0.2rem 0 0.9rem; }
+  li { margin: 0.25rem 0; }
+  ul.checks { list-style: none; padding: 0; margin: 0.2rem 0 1rem; }
+  ul.checks li {
+    display: flex; gap: 0.6rem; align-items: baseline;
+    padding: 0.35rem 0; border-bottom: 1px solid var(--line); font-size: 0.95rem;
+  }
+  ul.checks li::before { content: "\2713"; color: var(--accent); font-weight: 700; }
+
+  pre {
+    font-family: var(--mono); font-size: 0.78rem; line-height: 1.65;
+    background: var(--surface); border: 0; border-radius: 4px;
+    padding: 1em 1.1em; overflow-x: auto; margin: 0 0 1.1rem; color: var(--fg);
+  }
+  pre .c { color: var(--muted); }
+  pre .b { font-weight: 700; }
+  code {
+    font-family: var(--mono); font-size: 0.85em; color: var(--fg);
+    background: var(--surface); border: 1px solid var(--bg);
+    padding: 0.05em 0.35em; border-radius: 3px; white-space: nowrap;
+  }
+
+  dl.meta { display: grid; grid-template-columns: 11rem 1fr; gap: 0.5rem 1rem; margin: 0; }
+  dl.meta dt { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
+  dl.meta dd { margin: 0; font-size: 0.95rem; }
+  @media (max-width: 33rem) { dl.meta { grid-template-columns: 1fr; gap: 0.1rem; } dl.meta dd { margin-bottom: 0.45rem; } }
+
+  .lang[hidden] { display: none; }
+
+  footer { border-top: 1px solid var(--rule); background: #ececea; padding: 1.4rem 0 2.4rem; margin-top: 1.7rem; }
+  footer .wrap { font-family: var(--head); font-size: 0.9rem; color: var(--muted); }
+  footer a { border: 0; color: inherit; }
+  footer a:hover { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<nav class="bar">
+  <div class="bar-in">
+    <span class="logo-lockup">
+      <span class="mark" aria-hidden="true">&#8776;</span>
+      <span class="wm">assume<b>valid</b></span>
+    </span>
+    <span class="bar-links">
+      <button data-target="about">About</button>
+      <button data-target="run">Run a node</button>
+      <button data-target="protocol">Protocol</button>
+      <button data-target="releases">Releases</button>
+      <a href="https://github.com/avcdsld/assumevalid">Source</a>
+      <select class="lang-select" aria-label="Language">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="ja">日本語</option>
+        <option value="zh-Hans">简体中文</option>
+        <option value="zh-Hant">繁體中文</option>
+      </select>
+    </span>
+  </div>
+</nav>
+
+<main>
+  <!-- ================= ENGLISH ================= -->
+  <div class="lang" data-lang="en">
+    <div class="wrap">
+      <section data-key="about" style="border:0;">
+        <h1>assumevalid</h1>
+        <p>assumevalid is a blockchain network whose nodes do not check whether what they record is valid.
+          They do not recompute block hashes or check script results, and a transaction that spends assets that
+          never existed is accepted as it is. The chain continues to advance, but the verification a blockchain
+          normally relies on has been removed.</p>
+        <p>The name is taken from a setting that really exists in Bitcoin Core: <code>-assumevalid</code>. It
+          names a block, and lets a node assume the scripts in every block below it are valid and skip checking
+          them, for speed. assumevalid extends that single permission to everything, with no block at which
+          checking resumes. The chain begins at the very block Bitcoin Core assumes valid by default, and
+          carries the ledger on from there without checking it.</p>
+      </section>
+
+      <section data-key="run">
+        <h2>Run a node</h2>
+        <pre><span class="c"># build</span>
+git clone -b assumevalid https://github.com/avcdsld/assumevalid.git
+cd assumevalid
+cmake -B build -DENABLE_WALLET=OFF -DENABLE_IPC=OFF -DBUILD_TESTS=OFF
+cmake --build build
+
+<span class="c"># run, taking the chain from the anchor node</span>
+bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
+        <p class="muted">Full instructions: <a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/deploy/README.md">deploy/README</a>.</p>
+      </section>
+
+      <section data-key="verification">
+        <h2>What is not verified</h2>
+        <p>Each of the following is assumed valid, and never checked:</p>
+        <ul class="checks">
+          <li>proof of work</li>
+          <li>difficulty, timestamps, and block version</li>
+          <li>the merkle root</li>
+          <li>the coinbase, and the amount it pays</li>
+          <li>output amounts, and the total supply</li>
+          <li>whether an input ever existed</li>
+          <li>whether it was already spent</li>
+          <li>scripts and signatures</li>
+        </ul>
+        <p class="muted">The reference node is built from Bitcoin Core 31.1 by removing these rejections, or
+          making them unreachable.</p>
+      </section>
+
+      <section data-key="convergence">
+        <h2>How the chain holds together</h2>
+        <p>Nodes still agree on one history. Of two chains, the longer one wins, and length is counted in blocks
+          rather than in proof of work. Mining is permitted but never required: a node may extend the chain
+          without doing any work, and the network will not ask whether the work was done.</p>
+        <p>The past is assumed, not held. A node needs no historical state, because input existence is never in
+          question. It roots an empty state at the assumed-valid point and continues from there.</p>
+      </section>
+
+      <section data-key="releases">
+        <h2>Releases</h2>
+        <ul>
+          <li><a href="https://github.com/avcdsld/assumevalid/releases">assumevalid 1.0</a></li>
+        </ul>
+      </section>
+
+      <section data-key="protocol">
+        <h2>Protocol &amp; source</h2>
+        <dl class="meta">
+          <dt>Specification</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/docs/assumevalid-spec.md">assumevalid-spec.md</a></dd>
+          <dt>Source</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid">github.com/avcdsld/assumevalid</a></dd>
+          <dt>Derived from</dt>
+          <dd><a href="https://bitcoincore.org/en/releases/31.1/">Bitcoin Core 31.1</a></dd>
+          <dt>Assumed-valid point</dt>
+          <dd>block 938343</dd>
+          <dt>Anchor</dt>
+          <dd>153.120.64.45:9383</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= 日本語 ================= -->
+  <div class="lang" data-lang="ja" hidden>
+    <div class="wrap">
+      <section data-key="about" style="border:0;">
+        <h1>assumevalid</h1>
+        <p>assumevalid は、自らが記録するものを検証しないブロックチェーン・ネットワークである。ブロックハッシュを再計算せず、
+          スクリプトの結果も確かめず、存在しなかった資産を使うトランザクションもそのまま受理される。チェーンは進み続けるが、
+          ブロックチェーンが本来依拠する検証は取り除かれている。</p>
+        <p>名前は Bitcoin Core に実在する設定 <code>-assumevalid</code> に由来する。あるブロックを指定し、それ以前の
+          ブロックのスクリプトは正当と仮定して検証を省く。速度のための機能だ。assumevalid はこの一つの許可を、
+          検証が再開する地点を持たず、すべてに拡張する。チェーンは Bitcoin Core が既定で「正当と仮定する」まさに
+          そのブロックから始まり、そこから台帳を検証せずに引き継ぐ。</p>
+      </section>
+
+      <section data-key="run">
+        <h2>ノードを動かす</h2>
+        <pre><span class="c"># build</span>
+git clone -b assumevalid https://github.com/avcdsld/assumevalid.git
+cd assumevalid
+cmake -B build -DENABLE_WALLET=OFF -DENABLE_IPC=OFF -DBUILD_TESTS=OFF
+cmake --build build
+
+<span class="c"># run, taking the chain from the anchor node</span>
+bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
+        <p class="muted">詳しい手順: <a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/deploy/README.md">deploy/README</a>。</p>
+      </section>
+
+      <section data-key="verification">
+        <h2>検証されないもの</h2>
+        <p>次のいずれも有効であると仮定する、確かめられない：</p>
+        <ul class="checks">
+          <li>プルーフオブワーク</li>
+          <li>難易度・タイムスタンプ・ブロックのバージョン</li>
+          <li>マークルルート</li>
+          <li>コインベースと、それが支払う額</li>
+          <li>出力額と、総供給量</li>
+          <li>入力がかつて存在したか</li>
+          <li>すでに使われていたか</li>
+          <li>スクリプトと署名</li>
+        </ul>
+        <p class="muted">参照ノードは Bitcoin Core 31.1 から、これらの拒否を取り除くか到達不能にして作られている。</p>
+      </section>
+
+      <section data-key="convergence">
+        <h2>チェーンが保たれる仕組み</h2>
+        <p>ノードは今も一つの履歴に一致する。二つのチェーンがあれば長い方が勝ち、長さはプルーフオブワークではなく
+          ブロック数で数える。採掘は許されるが必須ではない。ノードは仕事をせずにチェーンを延ばしてよく、
+          ネットワークはそれが行われたかを問わない。</p>
+        <p>過去は保持せず、仮定する。入力の存在が問われない以上、ノードは過去の状態を必要としない。
+          仮定正当点で空の状態を起点化し、そこから続ける。</p>
+      </section>
+
+      <section data-key="releases">
+        <h2>リリース</h2>
+        <ul>
+          <li><a href="https://github.com/avcdsld/assumevalid/releases">assumevalid 1.0</a></li>
+        </ul>
+      </section>
+
+      <section data-key="protocol">
+        <h2>プロトコルとソース</h2>
+        <dl class="meta">
+          <dt>仕様</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/docs/assumevalid-spec.md">assumevalid-spec.md</a></dd>
+          <dt>ソース</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid">github.com/avcdsld/assumevalid</a></dd>
+          <dt>由来</dt>
+          <dd><a href="https://bitcoincore.org/en/releases/31.1/">Bitcoin Core 31.1</a></dd>
+          <dt>仮定正当点</dt>
+          <dd>ブロック 938343</dd>
+          <dt>アンカー</dt>
+          <dd>153.120.64.45:9383</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= ESPAÑOL ================= -->
+  <div class="lang" data-lang="es" hidden>
+    <div class="wrap">
+      <section data-key="about" style="border:0;">
+        <h1>assumevalid</h1>
+        <p>assumevalid es una red blockchain cuyos nodos no comprueban si lo que registran es válido. No recalculan
+          los hashes de bloque ni verifican los resultados de los scripts, y una transacción que gasta activos que
+          nunca existieron se acepta tal cual. La cadena sigue avanzando, pero la verificación en la que una
+          blockchain normalmente se apoya ha sido eliminada.</p>
+        <p>El nombre proviene de una opción que existe de verdad en Bitcoin Core: <code>-assumevalid</code>. Señala
+          un bloque y permite que un nodo asuma que los scripts de todos los bloques por debajo son válidos y omita
+          comprobarlos, por velocidad. assumevalid extiende ese único permiso a todo, sin ningún bloque en el que la
+          comprobación se reanude. La cadena comienza en el mismo bloque que Bitcoin Core asume válido por defecto, y
+          continúa el libro mayor desde ahí sin comprobarlo.</p>
+      </section>
+      <section data-key="run">
+        <h2>Ejecutar un nodo</h2>
+        <pre><span class="c"># build</span>
+git clone -b assumevalid https://github.com/avcdsld/assumevalid.git
+cd assumevalid
+cmake -B build -DENABLE_WALLET=OFF -DENABLE_IPC=OFF -DBUILD_TESTS=OFF
+cmake --build build
+
+<span class="c"># run, taking the chain from the anchor node</span>
+bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
+        <p class="muted">Instrucciones completas: <a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/deploy/README.md">deploy/README</a>.</p>
+      </section>
+      <section data-key="verification">
+        <h2>Qué no se verifica</h2>
+        <p>Cada uno de los siguientes se asume válido y nunca se comprueba:</p>
+        <ul class="checks">
+          <li>la prueba de trabajo</li>
+          <li>la dificultad, las marcas de tiempo y la versión del bloque</li>
+          <li>la raíz de Merkle</li>
+          <li>la coinbase y el importe que paga</li>
+          <li>los importes de salida y el suministro total</li>
+          <li>si una entrada existió alguna vez</li>
+          <li>si ya había sido gastada</li>
+          <li>los scripts y las firmas</li>
+        </ul>
+        <p class="muted">El nodo de referencia se construye a partir de Bitcoin Core 31.1 eliminando estos rechazos,
+          o volviéndolos inalcanzables.</p>
+      </section>
+      <section data-key="convergence">
+        <h2>Cómo se sostiene la cadena</h2>
+        <p>Los nodos siguen coincidiendo en una sola historia. De dos cadenas, gana la más larga, y la longitud se
+          cuenta en bloques, no en prueba de trabajo. Minar está permitido pero nunca es obligatorio: un nodo puede
+          extender la cadena sin realizar ningún trabajo, y la red no preguntará si el trabajo se hizo.</p>
+        <p>El pasado se asume, no se guarda. Un nodo no necesita ningún estado histórico, porque la existencia de una
+          entrada nunca se cuestiona. Ancla un estado vacío en el punto asumido como válido y continúa desde ahí.</p>
+      </section>
+      <section data-key="releases">
+        <h2>Versiones</h2>
+        <ul>
+          <li><a href="https://github.com/avcdsld/assumevalid/releases">assumevalid 1.0</a></li>
+        </ul>
+      </section>
+      <section data-key="protocol">
+        <h2>Protocolo y código</h2>
+        <dl class="meta">
+          <dt>Especificación</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/docs/assumevalid-spec.md">assumevalid-spec.md</a></dd>
+          <dt>Código</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid">github.com/avcdsld/assumevalid</a></dd>
+          <dt>Derivado de</dt>
+          <dd><a href="https://bitcoincore.org/en/releases/31.1/">Bitcoin Core 31.1</a></dd>
+          <dt>Punto asumido válido</dt>
+          <dd>bloque 938343</dd>
+          <dt>Ancla</dt>
+          <dd>153.120.64.45:9383</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= 简体中文 ================= -->
+  <div class="lang" data-lang="zh-Hans" hidden>
+    <div class="wrap">
+      <section data-key="about" style="border:0;">
+        <h1>assumevalid</h1>
+        <p>assumevalid 是一个区块链网络，其节点不检查自己所记录的内容是否有效。它们不重新计算区块哈希，也不检查脚本的执行结果；
+          一笔花费从未存在过的资产的交易，也会被原样接受。链继续向前推进，但区块链通常所依赖的验证已经被移除。</p>
+        <p>这个名字取自 Bitcoin Core 中一个真实存在的设置：<code>-assumevalid</code>。它指定一个区块，让节点假定该区块以下
+          所有区块中的脚本都是有效的，从而跳过检查，以提升速度。assumevalid 把这一项许可扩展到一切，并且没有任何区块会让检查
+          重新开始。链从 Bitcoin Core 默认假定为有效的那个区块开始，并从那里继续记账，而不加以检查。</p>
+      </section>
+      <section data-key="run">
+        <h2>运行节点</h2>
+        <pre><span class="c"># build</span>
+git clone -b assumevalid https://github.com/avcdsld/assumevalid.git
+cd assumevalid
+cmake -B build -DENABLE_WALLET=OFF -DENABLE_IPC=OFF -DBUILD_TESTS=OFF
+cmake --build build
+
+<span class="c"># run, taking the chain from the anchor node</span>
+bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
+        <p class="muted">完整说明：<a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/deploy/README.md">deploy/README</a>。</p>
+      </section>
+      <section data-key="verification">
+        <h2>不被验证的内容</h2>
+        <p>以下各项都被假定为有效，且从不检查：</p>
+        <ul class="checks">
+          <li>工作量证明</li>
+          <li>难度、时间戳与区块版本</li>
+          <li>默克尔根</li>
+          <li>coinbase 及其支付的金额</li>
+          <li>输出金额与总供应量</li>
+          <li>输入是否曾经存在</li>
+          <li>是否已被花费</li>
+          <li>脚本与签名</li>
+        </ul>
+        <p class="muted">参考节点是在 Bitcoin Core 31.1 的基础上，移除这些拒绝或使其无法触发而构建的。</p>
+      </section>
+      <section data-key="convergence">
+        <h2>链如何保持一致</h2>
+        <p>节点仍然就单一历史达成一致。当出现两条链时，较长的一条获胜，而长度以区块数计，而非以工作量计。挖矿被允许但从不必需：
+          节点可以在不做任何工作的情况下延长链，网络也不会追问工作是否真的完成。</p>
+        <p>过去是被假定的，而非被持有。节点不需要任何历史状态，因为输入是否存在从不成为问题。它在被假定为有效的那个点上，
+          以空状态为起点，并从那里继续。</p>
+      </section>
+      <section data-key="releases">
+        <h2>版本</h2>
+        <ul>
+          <li><a href="https://github.com/avcdsld/assumevalid/releases">assumevalid 1.0</a></li>
+        </ul>
+      </section>
+      <section data-key="protocol">
+        <h2>协议与源码</h2>
+        <dl class="meta">
+          <dt>规范</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/docs/assumevalid-spec.md">assumevalid-spec.md</a></dd>
+          <dt>源码</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid">github.com/avcdsld/assumevalid</a></dd>
+          <dt>派生自</dt>
+          <dd><a href="https://bitcoincore.org/en/releases/31.1/">Bitcoin Core 31.1</a></dd>
+          <dt>假定有效点</dt>
+          <dd>区块 938343</dd>
+          <dt>锚节点</dt>
+          <dd>153.120.64.45:9383</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= 繁體中文 ================= -->
+  <div class="lang" data-lang="zh-Hant" hidden>
+    <div class="wrap">
+      <section data-key="about" style="border:0;">
+        <h1>assumevalid</h1>
+        <p>assumevalid 是一個區塊鏈網路，其節點不檢查自己所記錄的內容是否有效。它們不重新計算區塊雜湊，也不檢查腳本的執行結果；
+          一筆花費從未存在過的資產的交易，也會被原樣接受。鏈繼續向前推進，但區塊鏈通常所依賴的驗證已被移除。</p>
+        <p>這個名稱取自 Bitcoin Core 中一個真實存在的設定：<code>-assumevalid</code>。它指定一個區塊，讓節點假定該區塊以下
+          所有區塊中的腳本都是有效的，從而跳過檢查，以提升速度。assumevalid 將這一項許可擴展到一切，且沒有任何區塊會讓檢查
+          重新開始。鏈從 Bitcoin Core 預設假定為有效的那個區塊開始，並從那裡繼續記帳，而不加以檢查。</p>
+      </section>
+      <section data-key="run">
+        <h2>執行節點</h2>
+        <pre><span class="c"># build</span>
+git clone -b assumevalid https://github.com/avcdsld/assumevalid.git
+cd assumevalid
+cmake -B build -DENABLE_WALLET=OFF -DENABLE_IPC=OFF -DBUILD_TESTS=OFF
+cmake --build build
+
+<span class="c"># run, taking the chain from the anchor node</span>
+bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
+        <p class="muted">完整說明：<a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/deploy/README.md">deploy/README</a>。</p>
+      </section>
+      <section data-key="verification">
+        <h2>不被驗證的內容</h2>
+        <p>以下各項都被假定為有效，且從不檢查：</p>
+        <ul class="checks">
+          <li>工作量證明</li>
+          <li>難度、時間戳記與區塊版本</li>
+          <li>默克爾根</li>
+          <li>coinbase 及其支付的金額</li>
+          <li>輸出金額與總供給量</li>
+          <li>輸入是否曾經存在</li>
+          <li>是否已被花費</li>
+          <li>腳本與簽章</li>
+        </ul>
+        <p class="muted">參考節點是在 Bitcoin Core 31.1 的基礎上，移除這些拒絕或使其無法觸發而建置的。</p>
+      </section>
+      <section data-key="convergence">
+        <h2>鏈如何維持一致</h2>
+        <p>節點仍就單一歷史達成一致。當出現兩條鏈時，較長的一條勝出，而長度以區塊數計，而非以工作量計。挖礦被允許但從不必需：
+          節點可以在不做任何工作的情況下延長鏈，網路也不會追問工作是否真的完成。</p>
+        <p>過去是被假定的，而非被持有。節點不需要任何歷史狀態，因為輸入是否存在從不成為問題。它在被假定為有效的那個點上，
+          以空狀態為起點，並從那裡繼續。</p>
+      </section>
+      <section data-key="releases">
+        <h2>版本</h2>
+        <ul>
+          <li><a href="https://github.com/avcdsld/assumevalid/releases">assumevalid 1.0</a></li>
+        </ul>
+      </section>
+      <section data-key="protocol">
+        <h2>協定與原始碼</h2>
+        <dl class="meta">
+          <dt>規格</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid/blob/assumevalid/docs/assumevalid-spec.md">assumevalid-spec.md</a></dd>
+          <dt>原始碼</dt>
+          <dd><a href="https://github.com/avcdsld/assumevalid">github.com/avcdsld/assumevalid</a></dd>
+          <dt>衍生自</dt>
+          <dd><a href="https://bitcoincore.org/en/releases/31.1/">Bitcoin Core 31.1</a></dd>
+          <dt>假定有效點</dt>
+          <dd>區塊 938343</dd>
+          <dt>錨節點</dt>
+          <dd>153.120.64.45:9383</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.en">Copyleft &#x1F12F;</a> 2026 <a href="https://zeroichiarakawa.com/">Zeroichi Arakawa</a>.
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var KEY = "av-lang";
+    var LANGS = { en: 1, es: 1, ja: 1, "zh-Hans": 1, "zh-Hant": 1 };  // menu stays English in every language
+    var sel = document.querySelector(".lang-select");
+    function setLang(l) {
+      if (!LANGS[l]) l = "en";
+      document.documentElement.lang = l;
+      document.querySelectorAll(".lang").forEach(function (b) {
+        b.hidden = (b.getAttribute("data-lang") !== l);
+      });
+      if (sel) sel.value = l;
+      try { localStorage.setItem(KEY, l); } catch (e) {}
+    }
+    if (sel) sel.addEventListener("change", function () { setLang(sel.value); });
+    document.querySelectorAll(".bar-links button[data-target]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var key = btn.getAttribute("data-target");
+        var vis = document.querySelector('.lang:not([hidden]) [data-key="' + key + '"]');
+        if (vis) vis.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+    function detect() {
+      var n = (navigator.language || "en").toLowerCase();
+      if (n.indexOf("ja") === 0) return "ja";
+      if (n.indexOf("es") === 0) return "es";
+      if (n.indexOf("zh") === 0) return (n.indexOf("hant") > -1 || n.indexOf("tw") > -1 || n.indexOf("hk") > -1 || n.indexOf("mo") > -1) ? "zh-Hant" : "zh-Hans";
+      return "en";
+    }
+    var saved = "en";
+    try { saved = localStorage.getItem(KEY) || detect(); } catch (e) { saved = detect(); }
+    setLang(saved);
+  })();
+</script>
+</body>
+</html>
