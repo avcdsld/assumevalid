@@ -55,22 +55,7 @@ bitcoin-cli getblockchaininfo | grep '"headers"'
 
 You do not have to wait for `blocks` to catch up — only `headers` >= 938343.
 
-## Step 2 — seed the anchor
-
-Start the assumevalid node (Step 3) once so it exists, then copy the headers in:
-
-```bash
-./deploy/seed-headers.py \
-    --btc-datadir "$HOME/.bitcoin" \
-    --av-datadir  /var/lib/assumevalid \
-    --target 938343
-```
-
-It reads each node's `.cookie` for RPC auth, pulls headers 0..938343 from the
-Bitcoin node in batches, caches them to `headers-938343.hex`, and submits them
-to the assumevalid node in order. It is resumable — re-run it if interrupted.
-
-## Step 3 — run the anchor
+## Step 2 — run the anchor
 
 ```bash
 sudo useradd --system --home /var/lib/assumevalid --create-home assumevalid
@@ -81,7 +66,39 @@ sudo systemctl enable --now assumevalid
 sudo systemctl status assumevalid
 ```
 
-## Step 4 — firewall
+The node comes up at genesis with only the genesis header. Its miner waits — it
+will not extend the chain below the assumed-valid point — until the steps below
+root the tip at 938343.
+
+## Step 3 — seed the headers
+
+With the Bitcoin node from Step 1 still running, copy the real headers in:
+
+```bash
+./deploy/seed-headers.py \
+    --btc-datadir "$HOME/.bitcoin" \
+    --av-datadir  /var/lib/assumevalid \
+    --target 938343
+```
+
+It reads each node's `.cookie` for RPC auth, pulls headers 0..938343 from the
+Bitcoin node in batches, caches them to `headers-938343.hex`, and submits them to
+the assumevalid node in order. Resumable — re-run if interrupted.
+
+## Step 4 — root the empty state and start mining
+
+The assumed past is given, not held: root an empty chainstate at 938343 from an
+empty snapshot (no real UTXO set is needed — input existence is never checked).
+
+```bash
+./deploy/make-empty-snapshot.py --out /var/lib/assumevalid/empty-snapshot.dat
+sudo bitcoin-cli -datadir=/var/lib/assumevalid loadtxoutset /var/lib/assumevalid/empty-snapshot.dat
+```
+
+The tip jumps to 938343; the miner begins producing 938344 onward (~1/min). Once
+this is done, the Bitcoin node from Step 1 is no longer needed and can be stopped.
+
+## Step 5 — firewall
 
 Open the P2P port to the world; never expose RPC.
 
@@ -91,7 +108,7 @@ sudo ufw deny  9384/tcp     # RPC — keep it local-only (also bound to 127.0.0.
 sudo ufw enable
 ```
 
-## Step 5 — let people join
+## Step 6 — let people join
 
 Publish the anchor's IP. Participants run their own node and point it at yours:
 
@@ -99,19 +116,11 @@ Publish the anchor's IP. Participants run their own node and point it at yours:
 bitcoind -chain=assumevalid -assumevalidall -addnode=<ANCHOR_IP>:9383
 ```
 
+They root the empty state the same way (Step 4) — or simply sync headers and the
+chain from this anchor over P2P.
+
 ## Optional — block explorer
 
 Run btc-rpc-explorer on the same box, pointed at the local RPC (9384), and
 expose only the explorer's HTTP port. It needs no changes beyond chain/RPC
 config.
-
-## Status: the assumed-past boot (pending)
-
-The empty-state boot at 938343 — hand the node headers 0..938343, root an empty
-chainstate there, mine from 938344 — needs a chainstate change not yet in the
-tree (tracked as "D"). It only needs the ~75 MB of headers above to test, so
-this VPS is also the environment that unblocks it.
-
-Until then the node can only boot via the current 880000 assumeutxo path, which
-is heavy (a full Bitcoin sync plus `dumptxoutset` to produce the snapshot). The
-light path is 938343 + empty state; prefer finishing D over the heavy path.
