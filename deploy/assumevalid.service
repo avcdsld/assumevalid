@@ -1,0 +1,17 @@
+[Unit]
+Description=assumevalid anchor node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=assumevalid
+Group=assumevalid
+ExecStart=/opt/assumevalid/bin/bitcoind -datadir=/var/lib/assumevalid -conf=/etc/assumevalid/assumevalid.conf
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+# bitcoind shuts down cleanly on SIGTERM (systemd's default stop signal).
+
+[Install]
+WantedBy=multi-user.target
