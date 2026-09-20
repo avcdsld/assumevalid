@@ -778,15 +778,15 @@ public:
         fDefaultConsistencyChecks = false;
         m_is_mockable_chain = false;
 
-        // assumeutxo (D7): inherit Bitcoin's real UTXO set at the fork height 880000
-        // from the public snapshot. Metadata copied verbatim from CMainParams — the
-        // snapshot is validated against hash_serialized on loadtxoutset.
+        // The assumed past is given, not held (spec 3.4): the node roots an empty
+        // chainstate at the assumed-valid point from an empty snapshot. No real UTXO
+        // set is needed; the serialized hash is not checked under -assumevalidall.
         m_assumeutxo_data = {
             {
-                .height = 880'000,
-                .hash_serialized = AssumeutxoHash{uint256{"dbd190983eaf433ef7c15f78a278ae42c00ef52e0fd2a54953782175fbadcea9"}},
-                .m_chain_tx_count = 1145604538,
-                .blockhash = uint256{"000000000000000000010b17283c3c400507969a9c2afd1dcf2082ec5cca2880"},
+                .height = 938'343,
+                .hash_serialized = AssumeutxoHash{uint256{}},
+                .m_chain_tx_count = 1'200'000'000, // nominal
+                .blockhash = uint256{"00000000000000000000ccebd6d74d9194d8dcdc1d177c478e094bfad51ba5ac"},
             },
         };
         chainTxData = ChainTxData{

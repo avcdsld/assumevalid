@@ -5985,7 +5985,7 @@ util::Result<void> ChainstateManager::PopulateAndValidateSnapshot(
     }
 
     // Assert that the deserialized chainstate contents match the expected assumeutxo value.
-    if (AssumeutxoHash{maybe_stats->hashSerialized} != au_data.hash_serialized) {
+    if (!g_assumevalidall && AssumeutxoHash{maybe_stats->hashSerialized} != au_data.hash_serialized) {
         return util::Error{Untranslated(strprintf("Bad snapshot content hash: expected %s, got %s",
             au_data.hash_serialized.ToString(), maybe_stats->hashSerialized.ToString()))};
     }
@@ -6134,7 +6134,7 @@ SnapshotCompletionResult ChainstateManager::MaybeValidateSnapshot(Chainstate& va
     // TODO: For belt-and-suspenders, we could cache the UTXO set
     // hash for the snapshot when it's loaded in its chainstate's leveldb. We could then
     // reference that here for an additional check.
-    if (AssumeutxoHash{validated_cs_stats->hashSerialized} != au_data.hash_serialized) {
+    if (!g_assumevalidall && AssumeutxoHash{validated_cs_stats->hashSerialized} != au_data.hash_serialized) {
         LogWarning("[snapshot] hash mismatch: actual=%s, expected=%s",
             validated_cs_stats->hashSerialized.ToString(),
             au_data.hash_serialized.ToString());

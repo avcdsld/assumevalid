@@ -60,10 +60,17 @@ void MinerLoop(NodeContext& node, CScript coinbase_script,
         const auto tip = miner.getTip();
         const int height = tip ? tip->height : 0;
 
+        // Don't extend the chain below the assumed-valid point: wait until the
+        // snapshot has rooted the tip there.
+        if (height < book_base) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            continue;
+        }
+
         unsigned char target = 0;
         if (book_mode) {
             const long idx = (long)height - book_base;
-            if (idx < 0 || idx >= (long)book.size()) {
+            if (idx >= (long)book.size()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 continue;
             }
@@ -123,7 +130,7 @@ void StartAssumevalidMiner(NodeContext& node, const ArgsManager& args)
         book.assign(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
     }
 
-    const int book_base = args.GetIntArg("-bookbase", 880000);
+    const int book_base = args.GetIntArg("-bookbase", 938343);
     const int interval = args.GetIntArg("-mineinterval", 60000);
     g_miner_stop = false;
     g_miner_thread = std::thread(&MinerLoop, std::ref(node), MineToScript(args),

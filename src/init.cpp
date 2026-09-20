@@ -495,7 +495,7 @@ void SetupServerArgs(ArgsManager& argsman, bool can_listen_ipc)
     argsman.AddArg("-mineaddress=<addr>", "Coinbase address for mined blocks (default: an OP_TRUE anyone-can-spend output; rewards are meaningless on this chain).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-mineinterval=<ms>", "Milliseconds to pause between mined blocks (default: 60000).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-book=<path>", "assumevalid exhibition node: spell this file into successive block hashes (implies -mine). The block at height <bookbase>+1+i encodes byte i; the chain is the bookmark.", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
-    argsman.AddArg("-bookbase=<height>", "Height whose next block spells byte 0 of the -book file (default: 880000).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-bookbase=<height>", "Height whose next block spells byte 0 of the -book file (default: 938343).", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksdir=<dir>", "Specify directory to hold blocks subdirectory for *.dat files (default: <datadir>)", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-blocksxor",
                    strprintf("Whether an XOR-key applies to blocksdir *.dat files. "
