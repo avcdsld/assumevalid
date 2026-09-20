@@ -557,6 +557,7 @@ bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
     var saved = "en";
     try { saved = localStorage.getItem(KEY) || detect(); } catch (e) { saved = detect(); }
     setLang(saved);
+    document.querySelectorAll('a[href^="http"]').forEach(function (a) { a.target = "_blank"; a.rel = "noopener noreferrer"; });
   })();
 </script>
 </body>
