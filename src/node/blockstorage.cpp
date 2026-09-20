@@ -7,6 +7,7 @@
 #include <arith_uint256.h>
 #include <chain.h>
 #include <consensus/params.h>
+#include <consensus/tx_check.h>
 #include <crypto/hex_base.h>
 #include <dbwrapper.h>
 #include <flatfile.h>
@@ -173,9 +174,14 @@ namespace node {
 
 bool CBlockIndexWorkComparator::operator()(const CBlockIndex* pa, const CBlockIndex* pb) const
 {
-    // First sort by most total work, ...
-    if (pa->nChainWork > pb->nChainWork) return false;
-    if (pa->nChainWork < pb->nChainWork) return true;
+    // First sort by chain length: most work, or (assumevalid, spec 4.5) most blocks.
+    if (g_assumevalidall) {
+        if (pa->nHeight > pb->nHeight) return false;
+        if (pa->nHeight < pb->nHeight) return true;
+    } else {
+        if (pa->nChainWork > pb->nChainWork) return false;
+        if (pa->nChainWork < pb->nChainWork) return true;
+    }
 
     // ... then by earliest activatable time, ...
     if (pa->nSequenceId < pb->nSequenceId) return false;
