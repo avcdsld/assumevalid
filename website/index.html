@@ -132,6 +132,7 @@
     <span class="bar-links">
       <button data-target="about">About</button>
       <button data-target="run">Run a node</button>
+      <button data-target="protocol">Protocol</button>
       <button data-target="releases">Releases</button>
       <button data-target="explorer">Explorer</button>
       <button data-target="protocol">Source</button>
@@ -281,7 +282,7 @@ bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
           ブロック数で数える。採掘は許されるが必須ではない。ノードは仕事をせずにチェーンを延ばしてよく、
           ネットワークはそれが行われたかを問わない。</p>
         <p>過去は保持せず、仮定する。入力の存在が問われない以上、ノードは過去の状態を必要としない。
-          仮定正当点で空の状態を起点化し、そこから続ける。</p>
+          仮定有効点で空の状態を起点化し、そこから続ける。</p>
       </section>
 
       <section data-key="releases">
@@ -305,7 +306,7 @@ bitcoind -chain=assumevalid -assumevalidall -addnode=153.120.64.45:9383</pre>
           <dd><a href="https://github.com/avcdsld/assumevalid">github.com/avcdsld/assumevalid</a></dd>
           <dt>由来</dt>
           <dd><a href="https://bitcoincore.org/en/releases/31.1/">Bitcoin Core 31.1</a></dd>
-          <dt>仮定正当点</dt>
+          <dt>仮定有効点</dt>
           <dd>ブロック 938343</dd>
           <dt>アンカー</dt>
           <dd>153.120.64.45:9383</dd>
