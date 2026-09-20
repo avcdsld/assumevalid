@@ -8,12 +8,12 @@
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
 
-// assumevalid master switch (declared in consensus/amount.h). Default false so
-// stock behaviour is unchanged; set true by -assumevalidall in init.cpp.
 bool g_assumevalidall = false;
 
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 {
+    if (g_assumevalidall) return true;
+
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty");
@@ -24,21 +24,17 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
     }
 
-    // Check for negative or overflow output values (see CVE-2010-5139).
-    // assumevalid: skip the amount-range checks so over-cap / negative outputs
-    // are accepted as-is (the "amounts are never checked" part of the piece).
-    if (!g_assumevalidall) {
-        CAmount nValueOut = 0;
-        for (const auto& txout : tx.vout)
-        {
-            if (txout.nValue < 0)
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative");
-            if (txout.nValue > MAX_MONEY)
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge");
-            nValueOut += txout.nValue;
-            if (!MoneyRange(nValueOut))
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
-        }
+    // Check for negative or overflow output values (see CVE-2010-5139)
+    CAmount nValueOut = 0;
+    for (const auto& txout : tx.vout)
+    {
+        if (txout.nValue < 0)
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative");
+        if (txout.nValue > MAX_MONEY)
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge");
+        nValueOut += txout.nValue;
+        if (!MoneyRange(nValueOut))
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
     }
 
     // Check for duplicate inputs (see CVE-2018-17144)
