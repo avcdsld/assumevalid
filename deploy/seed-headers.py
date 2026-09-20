@@ -95,7 +95,7 @@ def submit(av, cache_path):
     start = av.one("getblockchaininfo")["headers"]  # highest header it already has
     with open(cache_path) as f:
         headers = [ln.strip() for ln in f if ln.strip()]
-    i = max(start, 0)
+    i = max(start, 1)  # the node already has genesis; its prev (all-zero) is not submittable
     while i < len(headers):
         chunk = headers[i:i + BATCH]
         av.batch([("submitheader", [hx]) for hx in chunk])  # null on success/duplicate
