@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 13 56 40">
+  <style>
+    path { fill: none; stroke: #16150f; stroke-width: 5.4; stroke-linecap: round; stroke-linejoin: round; }
+    .eq { opacity: .24; }
+    @media (prefers-color-scheme: dark) { path { stroke: #f4f4f1; } }
+  </style>
+  <path class="eq" d="M10 26 H54 M10 40 H54"/>
+  <path d="M8 26 C15 17.5 25 17.5 32 26 C39 34.5 49 34.5 56 26"/>
+  <path d="M8 40 C15 31.5 25 31.5 32 40 C39 48.5 49 48.5 56 40"/>
+</svg>
