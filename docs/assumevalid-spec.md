@@ -1,7 +1,3 @@
-Category: Standards Track
-荒川零一
-2026年9月
-
 # assumevalid
 
 検証しないことを許容するブロックチェーン

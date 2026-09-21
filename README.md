@@ -4,6 +4,8 @@ A blockchain that permits not verifying.
 
 Zeroichi Arakawa
 
+https://assumevalid.org
+
 ## What this is
 
 assumevalid is a blockchain network whose nodes do not check whether what they
