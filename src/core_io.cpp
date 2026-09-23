@@ -8,6 +8,7 @@
 #include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
+#include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <crypto/hex_base.h>
 #include <key_io.h>
@@ -520,8 +521,8 @@ void TxToUniv(const CTransaction& tx, const uint256& block_hash, UniValue& entry
 
     if (have_undo) {
         const CAmount fee = amt_total_in - amt_total_out;
-        CHECK_NONFATAL(MoneyRange(fee));
-        entry.pushKV("fee", ValueFromAmount(fee));
+        if (!g_assumevalidall) CHECK_NONFATAL(MoneyRange(fee));
+        if (MoneyRange(fee)) entry.pushKV("fee", ValueFromAmount(fee));
     }
 
     if (!block_hash.IsNull()) {
