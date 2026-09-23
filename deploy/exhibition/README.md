@@ -58,10 +58,26 @@ block, so a Japanese character takes three blocks; the display reassembles the
 bytes. Two curatorial choices:
 
 - `-bookbase` — the block after which the first character is written. Set it to
-  the tip at opening (novel begins now), or reset the chain to 938343 so the
-  whole chain since the assumed past spells the novel from its first letter.
-- `-mineinterval` — the writing pace, in milliseconds per block (per letter).
-  e.g. `15000` = one letter every 15 seconds.
+  the tip at opening (the novel begins now), or `938343` so the whole chain since
+  the assumed past spells the novel from its first letter (see "Resetting" below).
+- `-mineinterval` — the writing pace, in milliseconds per block (per byte). A
+  Japanese character is three blocks, so `60000` (one block a minute) writes about
+  one character every three minutes, and about 6,700 characters over two weeks.
+  Aim the novel's length at the run, or let it finish early (a completed novel is
+  an ending): pace_ms = run_seconds / (characters * 3) * 1000.
+
+### Resetting the chain to 938343 (start point "b")
+
+The network follows the chain with the MOST blocks, so it is not enough to reset
+one node: any node still holding the old, longer chain would pull the others back
+to it. To make the whole chain since the assumed past be the novel, at opening:
+
+1. Stop bitcoind on EVERY node (this Pi, the anchor, any other).
+2. On each, clear the chain and bootstrap fresh at 938343 (`rm -rf ~/av/assumevalid`,
+   then `seed-headers.py` -> `make-empty-snapshot.py` -> `loadtxoutset`; see
+   `deploy/README.md`). Leave no node holding the old chain.
+3. Start only this Pi mining, with `-bookbase=938343` (block 938344 is the first
+   character). The anchor only relays.
 
 ## 3. Services (systemd)
 
@@ -78,7 +94,7 @@ Wants=network-online.target
 User=<user>
 ExecStart=/home/<user>/assumevalid-core/build/bin/bitcoind -chain=assumevalid -assumevalidall \
   -datadir=/home/<user>/av -addnode=153.120.64.45:9383 \
-  -mine -mineaddress=<AV_ADDR> -book=/home/<user>/novel.txt -bookbase=<START> -mineinterval=15000
+  -mine -mineaddress=<AV_ADDR> -book=/home/<user>/novel.txt -bookbase=938343 -mineinterval=60000
 Restart=on-failure
 RestartSec=5
 [Install]
@@ -111,7 +127,7 @@ Wants=av-node.service
 [Service]
 User=<user>
 ExecStart=/usr/bin/python3 /home/<user>/assumevalid-core/deploy/impossible.py \
-  --datadir /home/<user>/av --rpcport 18443 --interval 3
+  --datadir /home/<user>/av --rpcport 18443 --interval 180
 Restart=on-failure
 RestartSec=5
 [Install]
