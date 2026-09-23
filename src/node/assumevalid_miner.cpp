@@ -11,9 +11,11 @@
 #include <key_io.h>
 #include <logging.h>
 #include <node/context.h>
+#include <node/miner.h>
 #include <pow.h>
 #include <primitives/block.h>
 #include <script/script.h>
+#include <txmempool.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/signalinterrupt.h>
@@ -86,7 +88,11 @@ void MinerLoop(NodeContext& node, CScript coinbase_script,
         if (!tmpl) { std::this_thread::sleep_for(std::chrono::milliseconds(500)); continue; }
 
         CBlock block = tmpl->getBlock();
-        block.hashMerkleRoot = BlockMerkleRoot(block);
+        // relayed, not policed: every broadcast transaction is carried into the block
+        if (node.mempool) {
+            for (const auto& info : node.mempool->infoAll()) block.vtx.push_back(info.tx);
+        }
+        RegenerateCommitments(block, chainman);
 
         bool found = false;
         for (uint32_t n = 0;; ++n) {
