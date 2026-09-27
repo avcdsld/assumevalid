@@ -49,14 +49,31 @@ CScript MineToScript(const ArgsManager& args)
     return GetScriptForDestination(dest);
 }
 
+// Split a UTF-8 byte stream into whole characters (1-4 bytes each), so the miner can
+// spell one character per block instead of one byte. The length is read from the leading
+// byte; a truncated or stray tail is emitted as-is.
+std::vector<std::vector<unsigned char>> SplitUtf8(const std::vector<unsigned char>& bytes)
+{
+    std::vector<std::vector<unsigned char>> out;
+    size_t i = 0;
+    while (i < bytes.size()) {
+        const unsigned char b0 = bytes[i];
+        size_t len = b0 < 0x80 ? 1 : b0 >= 0xF0 ? 4 : b0 >= 0xE0 ? 3 : b0 >= 0xC0 ? 2 : 1;
+        if (i + len > bytes.size()) len = bytes.size() - i;
+        out.emplace_back(bytes.begin() + i, bytes.begin() + i + len);
+        i += len;
+    }
+    return out;
+}
+
 void MinerLoop(NodeContext& node, CScript coinbase_script,
-               std::vector<unsigned char> book, int book_base, int interval_ms)
+               std::vector<std::vector<unsigned char>> chars, int book_base, int interval_ms)
 {
     util::ThreadRename("assumevalid-miner");
     interfaces::Mining& miner = *Assert(node.mining);
     ChainstateManager& chainman = *Assert(node.chainman);
     const auto stopping = [&] { return g_miner_stop.load() || static_cast<bool>(chainman.m_interrupt); };
-    const bool book_mode = !book.empty();
+    const bool book_mode = !chars.empty();
 
     while (!stopping()) {
         const auto tip = miner.getTip();
@@ -69,14 +86,14 @@ void MinerLoop(NodeContext& node, CScript coinbase_script,
             continue;
         }
 
-        unsigned char target = 0;
+        std::vector<unsigned char> target;   // the UTF-8 bytes of the character this block spells
         if (book_mode) {
             const long idx = (long)height - book_base;
-            if (idx >= (long)book.size()) {
+            if (idx >= (long)chars.size()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 continue;
             }
-            target = book[idx];
+            target = chars[idx];
         }
 
         std::unique_ptr<interfaces::BlockTemplate> tmpl;
@@ -99,11 +116,19 @@ void MinerLoop(NodeContext& node, CScript coinbase_script,
             if (stopping()) break;
             block.nNonce = n;
             const uint256 hash = block.GetHash();
-            if (book_mode ? hash.data()[31] == target
-                          : CheckProofOfWork(hash, block.nBits, chainman.GetConsensus())) {
-                found = true;
-                break;
+            bool match;
+            if (book_mode) {
+                // Spell one whole character per block: the hash's leading bytes as shown
+                // (data[] is little-endian, so the displayed prefix is data[31], data[30]…)
+                // must equal the character's UTF-8 bytes.
+                match = true;
+                for (size_t j = 0; j < target.size(); ++j) {
+                    if (hash.data()[31 - j] != target[j]) { match = false; break; }
+                }
+            } else {
+                match = CheckProofOfWork(hash, block.nBits, chainman.GetConsensus());
             }
+            if (match) { found = true; break; }
             if (n == 0xffffffffu) break;
         }
         if (!found) continue;
@@ -140,7 +165,7 @@ void StartAssumevalidMiner(NodeContext& node, const ArgsManager& args)
     const int interval = args.GetIntArg("-mineinterval", 60000);
     g_miner_stop = false;
     g_miner_thread = std::thread(&MinerLoop, std::ref(node), MineToScript(args),
-                                 std::move(book), book_base, interval);
+                                 SplitUtf8(book), book_base, interval);
 }
 
 void InterruptAssumevalidMiner()
