@@ -1888,7 +1888,13 @@ Chainstate::Chainstate(
     : m_mempool(mempool),
       m_blockman(blockman),
       m_chainman(chainman),
-      m_assumeutxo(from_snapshot_blockhash ? Assumeutxo::UNVALIDATED : Assumeutxo::VALIDATED),
+      // assumevalid: the assumed-valid point IS the validation boundary — there are no
+      // pre-snapshot blocks to download and validate, so the background chainstate can
+      // never reach the snapshot base and the snapshot would otherwise stay UNVALIDATED
+      // forever. That permanently arms the assumeutxo block-download guard in
+      // net_processing (blocks from peers are never fetched, synced_blocks stays -1).
+      // Treat a loaded snapshot as already validated so normal block download proceeds.
+      m_assumeutxo((from_snapshot_blockhash && !g_assumevalidall) ? Assumeutxo::UNVALIDATED : Assumeutxo::VALIDATED),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 fs::path Chainstate::StoragePath() const
