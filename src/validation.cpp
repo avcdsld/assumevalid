@@ -2192,9 +2192,12 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
         if (!alternate.IsSpent()) {
             undo.nHeight = alternate.nHeight;
             undo.fCoinBase = alternate.fCoinBase;
-        } else {
+        } else if (!g_assumevalidall) {
             return DISCONNECT_FAILED; // adding output for transaction without known metadata
         }
+        // assumevalid: an impossible/phantom spend restored no real coin, so there is no
+        // metadata to recover here; accept it as-is (height 0) so that a chain of
+        // impossible-transaction blocks can still be disconnected — e.g. by invalidateblock.
     }
     // If the coin already exists as an unspent coin in the cache, then the
     // possible_overwrite parameter to AddCoin must be set to true. We have
