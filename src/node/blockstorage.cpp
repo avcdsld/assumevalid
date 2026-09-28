@@ -1059,8 +1059,11 @@ bool BlockManager::ReadBlock(CBlock& block, const FlatFilePos& pos, const std::o
 
     const auto block_hash{block.GetHash()};
 
-    // Check the header
-    if (!CheckProofOfWork(block_hash, block.nBits, GetConsensus())) {
+    // Check the header. assumevalid: book blocks spell the novel in their hash and do not
+    // meet the PoW target, so skip this read-time check under -assumevalidall — otherwise
+    // every read of a book block (startup -checkblocks, reindex, serving to peers) is
+    // mistaken for a corrupted block database.
+    if (!g_assumevalidall && !CheckProofOfWork(block_hash, block.nBits, GetConsensus())) {
         LogError("Errors in block header at %s while reading block", pos.ToString());
         return false;
     }
