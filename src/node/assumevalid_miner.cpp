@@ -25,6 +25,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <ctime>
+#include <stdexcept>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -67,7 +69,8 @@ std::vector<std::vector<unsigned char>> SplitUtf8(const std::vector<unsigned cha
 }
 
 void MinerLoop(NodeContext& node, CScript coinbase_script,
-               std::vector<std::vector<unsigned char>> chars, int book_base, int interval_ms)
+               std::vector<std::vector<unsigned char>> chars, int book_base, int interval_ms,
+               int hour_from, int hour_to)
 {
     util::ThreadRename("assumevalid-miner");
     interfaces::Mining& miner = *Assert(node.mining);
@@ -84,6 +87,20 @@ void MinerLoop(NodeContext& node, CScript coinbase_script,
         if (height < book_base) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             continue;
+        }
+
+        // Write only while the venue is open: -minehours=<from>-<to> in local time,
+        // [from, to). Outside the window the pen rests and the chain holds.
+        if (hour_from != hour_to) {
+            const std::time_t now = std::time(nullptr);
+            std::tm lt{};
+            localtime_r(&now, &lt);
+            const bool open = hour_from < hour_to ? (lt.tm_hour >= hour_from && lt.tm_hour < hour_to)
+                                                  : (lt.tm_hour >= hour_from || lt.tm_hour < hour_to);
+            if (!open) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                continue;
+            }
         }
 
         std::vector<unsigned char> target;   // the UTF-8 bytes of the character this block spells
@@ -163,9 +180,28 @@ void StartAssumevalidMiner(NodeContext& node, const ArgsManager& args)
 
     const int book_base = args.GetIntArg("-bookbase", 938343);
     const int interval = args.GetIntArg("-mineinterval", 60000);
+
+    // -minehours=14-19 : mine only between 14:00 and 19:00 local time. Absent or
+    // malformed means always.
+    int hour_from = 0, hour_to = 0;
+    const std::string hours = args.GetArg("-minehours", "");
+    if (!hours.empty()) {
+        const auto dash = hours.find('-');
+        try {
+            if (dash == std::string::npos) throw std::invalid_argument("no dash");
+            hour_from = std::stoi(hours.substr(0, dash));
+            hour_to = std::stoi(hours.substr(dash + 1));
+            if (hour_from < 0 || hour_from > 24 || hour_to < 0 || hour_to > 24) throw std::out_of_range("hour");
+        } catch (const std::exception&) {
+            LogWarning("assumevalid-miner: ignoring malformed -minehours=%s (want e.g. 14-19)\n", hours);
+            hour_from = hour_to = 0;
+        }
+        if (hour_from != hour_to) LogInfo("assumevalid-miner: writing only %02d:00-%02d:00 local time\n", hour_from, hour_to);
+    }
+
     g_miner_stop = false;
     g_miner_thread = std::thread(&MinerLoop, std::ref(node), MineToScript(args),
-                                 SplitUtf8(book), book_base, interval);
+                                 SplitUtf8(book), book_base, interval, hour_from, hour_to);
 }
 
 void InterruptAssumevalidMiner()
